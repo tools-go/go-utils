@@ -1,10 +1,10 @@
-package trace
+package dtrace
 
 import "context"
 
 // LogCrashStack for stack
 func LogCrashStack(ctx context.Context, r interface{}) {
-	GetTraceFromContext(ctx).Warningf("panic: %v, detail: %s", r, string(Stacks(false)))
+	GetTraceFromContext(ctx).Warnf("panic: %v, detail: %s", r, string(Stacks(false)))
 }
 
 // HandleCrash xx

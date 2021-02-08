@@ -1,6 +1,8 @@
 package errors
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // New returns an error that formats as the given text.
 func New(text string) error {
@@ -173,6 +175,13 @@ func (err *ServerError) Error() string {
 	return err.message
 }
 
+func IsServerError(err error) bool {
+	if _, ok := err.(*ServerError); ok {
+		return true
+	}
+	return false
+}
+
 // invalid region
 type errInvalidRegion struct {
 	region string
@@ -221,3 +230,44 @@ func IsForbiddenError(err error) bool {
 	}
 	return false
 }
+
+type errDB struct{
+	message string
+}
+
+func NewDBError(message string) error  {
+	return &errDB{fmt.Sprintf("[DB Err] %s", message)}
+}
+func (err *errDB) Error()string {
+	if err == nil{
+		return "nil"
+	}
+	return err.message
+}
+
+func IsDBError(err error) bool {
+	if _, ok := err.(*errDB); ok {
+		return true
+	}
+	return false
+}
+
+type errParam struct {
+	message string
+}
+
+func NewParamError(message string) error  {
+    return &errParam{message: message}
+}
+
+func (err *errParam) Error()string {
+	return err.message
+}
+
+func IsParamError(err error) bool {
+	if _, ok := err.(*errParam); ok {
+		return true
+	}
+	return false
+}
+

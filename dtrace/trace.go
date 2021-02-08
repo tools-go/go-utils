@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package trace A log wrapper based on google glog. Mainly used for a http request process.
-package trace
+package dtrace
 
 import (
 	"bytes"
@@ -60,9 +60,9 @@ type dlogger interface {
 	// Infof will print the args with a format as the info level log
 	Infof(format string, args ...interface{})
 	// Warn will print the args as the warn level log
-	Warning(args ...interface{})
+	Warn(args ...interface{})
 	// Warnf will print the args with a format as the warn level log
-	Warningf(format string, args ...interface{})
+	Warnf(format string, args ...interface{})
 	// Error will print the args as the error level log
 	Error(args ...interface{})
 	// Errorf will print the args with a format as the error level log
@@ -284,11 +284,11 @@ func (t *trace) Infof(format string, args ...interface{}) {
 	t.dlogf(dlog.INFO, format, args...)
 }
 
-func (t *trace) Warning(args ...interface{}) {
+func (t *trace) Warn(args ...interface{}) {
 	t.dlog(dlog.WARNING, args...)
 }
 
-func (t *trace) Warningf(format string, args ...interface{}) {
+func (t *trace) Warnf(format string, args ...interface{}) {
 	t.dlogf(dlog.WARNING, format, args...)
 }
 
@@ -304,7 +304,7 @@ func (t *trace) SetLogger(l *dlog.Logger) Trace {
 	var ct trace
 	ct = *t
 	if l == nil {
-		t.Warning("custom logger is nil, will to use global logger")
+		t.Warn("custom logger is nil, will to use global logger")
 	} else {
 		ct.logger = l
 	}
