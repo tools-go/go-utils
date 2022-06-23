@@ -20,7 +20,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/leopoldxx/go-utils/trace"
+	"github.com/tools-go/go-utils/trace"
 )
 
 func TestTrace(t *testing.T) {

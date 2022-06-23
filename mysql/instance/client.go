@@ -3,8 +3,9 @@ package instance
 import (
 	"sync"
 
-	"github.com/leopoldxx/go-utils/mysql"
 	"github.com/spf13/viper"
+
+	"github.com/tools-go/go-utils/mysql"
 )
 
 /*

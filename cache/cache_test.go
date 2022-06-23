@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/leopoldxx/go-utils/cache"
+	. "github.com/tools-go/go-utils/cache"
 )
 
 func TestCache(t *testing.T) {

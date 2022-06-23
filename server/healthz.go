@@ -4,8 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/leopoldxx/go-utils/middleware"
-	"github.com/leopoldxx/go-utils/trace"
+
+	"github.com/tools-go/go-utils/middleware"
+	"github.com/tools-go/go-utils/trace"
 )
 
 type healthz struct{}

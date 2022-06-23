@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/leopoldxx/go-utils/errors"
+	"github.com/tools-go/go-utils/errors"
 )
 
 type commResp struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/leopoldxx/go-utils/utils/rotate"
+	"github.com/tools-go/go-utils/utils/rotate"
 )
 
 func main() {

@@ -12,9 +12,10 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/leopoldxx/go-utils/errors"
-	"github.com/leopoldxx/go-utils/trace"
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/tools-go/go-utils/errors"
+	"github.com/tools-go/go-utils/trace"
 )
 
 const (

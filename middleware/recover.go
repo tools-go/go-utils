@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/leopoldxx/go-utils/trace"
+	"github.com/tools-go/go-utils/trace"
 )
 
 // RecoverWithTrace middleware is a RecoverMiddleware wraps with a trace handler

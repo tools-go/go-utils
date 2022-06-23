@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	. "github.com/leopoldxx/go-utils/httputils"
+	. "github.com/tools-go/go-utils/httputils"
 )
 
 func TestPackURL(t *testing.T) {

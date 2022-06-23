@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/leopoldxx/go-utils/trace"
+	"github.com/tools-go/go-utils/trace"
 )
 
 // DebugLevel of the debug logs
@@ -265,7 +265,7 @@ func (rest *RestCli) Do() (*Response, error) {
 		req.Close = true
 	}
 
-	resp, err := ClientDo(rest.cli, req, true) // always return  a Body Reader, avoid memory copy
+	resp, err := ClientDo(rest.cli, req, rest.isStream)
 	if err != nil {
 		if rest.debug >= Debug1 {
 			tracer.Error("do request failed:", err)

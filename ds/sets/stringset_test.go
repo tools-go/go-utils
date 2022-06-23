@@ -3,7 +3,7 @@ package sets_test
 import (
 	"testing"
 
-	"github.com/leopoldxx/go-utils/ds/sets"
+	"github.com/tools-go/go-utils/ds/sets"
 )
 
 func TestStringSet(t *testing.T) {

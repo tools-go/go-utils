@@ -3,7 +3,7 @@ package mysql_test
 import (
 	"testing"
 
-	"github.com/leopoldxx/go-utils/mysql/instance"
+	"github.com/tools-go/go-utils/mysql/instance"
 )
 
 func TestNewClient(t *testing.T) {

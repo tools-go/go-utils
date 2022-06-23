@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/vmihailenco/msgpack.v2"
 
-	"github.com/leopoldxx/go-utils/concurrency"
+	"github.com/tools-go/go-utils/concurrency"
 
 	"golang.org/x/net/icmp"
 	"golang.org/x/net/ipv4"

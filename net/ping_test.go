@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/leopoldxx/go-utils/net"
+	"github.com/tools-go/go-utils/net"
 )
 
 func ExamplePing() {

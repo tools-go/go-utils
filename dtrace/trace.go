@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"time"
 
-	"git.xiaojukeji.com/devops/MachineAlliance/self/commons/trace/dlog"
+	"github.com/tools-go/go-utils/dtrace/dlog"
 
 	"github.com/nu7hatch/gouuid"
 )

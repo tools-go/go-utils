@@ -308,11 +308,11 @@ func (l *Logger) Infof(format string, args ...interface{}) {
 	l.printf(INFO, format, args...)
 }
 
-func (l *Logger) Warning(args ...interface{}) {
+func (l *Logger) Warn(args ...interface{}) {
 	l.print(WARNING, args...)
 }
 
-func (l *Logger) Warningf(format string, args ...interface{}) {
+func (l *Logger) Warnf(format string, args ...interface{}) {
 	l.printf(WARNING, format, args...)
 }
 

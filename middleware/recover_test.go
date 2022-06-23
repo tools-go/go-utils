@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	. "github.com/leopoldxx/go-utils/middleware"
+	. "github.com/tools-go/go-utils/middleware"
 )
 
 func TestRecover(t *testing.T) {

@@ -6,9 +6,10 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/leopoldxx/go-utils/middleware"
-	"github.com/leopoldxx/go-utils/server"
-	"github.com/leopoldxx/go-utils/trace"
+
+	"github.com/tools-go/go-utils/middleware"
+	"github.com/tools-go/go-utils/server"
+	"github.com/tools-go/go-utils/trace"
 )
 
 func main() {

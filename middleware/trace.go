@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/leopoldxx/go-utils/trace"
+	"github.com/tools-go/go-utils/trace"
 )
 
 // Trace will create a trace handler middleware

@@ -22,8 +22,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/leopoldxx/go-utils/trace/glog"
 	"github.com/nu7hatch/gouuid"
+
+	"github.com/tools-go/go-utils/trace/glog"
 )
 
 const (

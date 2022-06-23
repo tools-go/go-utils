@@ -5,8 +5,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/leopoldxx/go-utils/retry"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/tools-go/go-utils/retry"
 )
 
 func TestRetry(t *testing.T) {

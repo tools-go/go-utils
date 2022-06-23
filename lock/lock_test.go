@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
-	"github.com/leopoldxx/go-utils/trace"
+
+	"github.com/tools-go/go-utils/trace"
 )
 
 func newClientv3(t *testing.T) *clientv3.Client {

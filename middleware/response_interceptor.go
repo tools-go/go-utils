@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/leopoldxx/go-utils/trace"
+	"github.com/tools-go/go-utils/trace"
 )
 
 var defaultResponseInterceptor Recorder

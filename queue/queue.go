@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/leopoldxx/go-utils/concurrency"
-	"github.com/leopoldxx/go-utils/trace"
+	"github.com/tools-go/go-utils/concurrency"
+	"github.com/tools-go/go-utils/trace"
 
 	"context"
 )

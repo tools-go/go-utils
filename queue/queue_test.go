@@ -7,7 +7,7 @@ import (
 
 	"context"
 
-	. "github.com/leopoldxx/go-utils/queue"
+	. "github.com/tools-go/go-utils/queue"
 )
 
 type fakeHandle struct {

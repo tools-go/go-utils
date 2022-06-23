@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/facebookgo/httpdown"
-	"github.com/leopoldxx/go-utils/trace/glog"
+
+	"github.com/tools-go/go-utils/trace/glog"
 
 	"github.com/gorilla/mux"
 )
