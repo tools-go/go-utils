@@ -279,7 +279,6 @@ func (rest *RestCli) Do() (*Response, error) {
 	if rest.isStream {
 		return resp, nil
 	}
-	defer resp.BodyStream.Close()
 
 	if len(rest.into) > 0 {
 		status := strconv.Itoa(resp.Status)
