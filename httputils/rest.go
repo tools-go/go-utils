@@ -5,13 +5,14 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/tools-go/go-utils/trace"
+	"github.com/leopoldxx/go-utils/trace"
 )
 
 // DebugLevel of the debug logs
@@ -277,7 +278,13 @@ func (rest *RestCli) Do() (*Response, error) {
 	}
 
 	if rest.isStream {
-		return resp, nil
+		return &resp, nil
+	}
+
+	if rest.debug >= Debug2 {
+		if len(resp.Body) > 0 {
+			tracer.Infof("resp body: %v", string(resp.Body))
+		}
 	}
 
 	if len(rest.into) > 0 {
@@ -291,20 +298,17 @@ func (rest *RestCli) Do() (*Response, error) {
 			}
 			for _, status := range ss {
 				if rsp, exist := rest.into[status]; exist {
-					err = json.NewDecoder(resp.BodyStream).Decode(rsp)
+					err = json.Unmarshal(resp.Body, rsp)
 					if err != nil {
 						if rest.debug >= Debug1 {
-							tracer.Errorf("unmarshal resp failed: %s", err)
+							tracer.Errorf("unmarshal resp failed: %s, body: %s", err, string(resp.Body))
 						}
-						return nil, err
+						return nil, fmt.Errorf("err: %s, body: %s", err, string(resp.Body))
 					}
-					if rest.debug >= Debug2 {
-						tracer.Infof("resp: %+v", rsp)
-					}
-					return resp, nil
+					return &resp, nil
 				}
 			}
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
