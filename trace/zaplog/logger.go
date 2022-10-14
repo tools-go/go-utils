@@ -16,7 +16,7 @@ import (
 var Logger Logr
 
 func init() {
-	InitLoggers("./logs", NewDefaultRotate())
+	InitLogers("./logs", NewDefaultRotate())
 }
 
 const (
@@ -43,9 +43,13 @@ type Level zapcore.Level
 type LevelEnableFunc func(level Level) bool
 type Option zap.Option
 
+func (l Level) Enabled(level zapcore.Level) bool {
+	return Level(level) >= l
+}
+
 type teeOpt struct {
 	Filepath string
-	LevelF   LevelEnableFunc
+	LevelF   zapcore.LevelEnabler
 	Rot      *RotateOption
 }
 
@@ -80,8 +84,8 @@ type OptionFunc func(option *RotateOption)
 func NewDefaultRotate(opts ...OptionFunc) *RotateOption {
 	ro := &RotateOption{
 		MaxSize:    2 * 1024, //2G
-		MaxAge:     3,        //保留7天
-		MaxBackups: 100,      // 保留文件数
+		MaxAge:     7,        //保留7天
+		MaxBackups: 500,      // 保留文件数
 		Compress:   false,    // 不压缩为.gz包
 	}
 	for _, f := range opts {
@@ -110,10 +114,6 @@ func newTee(tops []teeOpt) *logger {
 		if top.Filepath == "" {
 			panic("log filepath is empty")
 		}
-		lv := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
-			return top.LevelF(Level(level))
-		})
-
 		w := &lumberjack.Logger{
 			Filename:   top.Filepath,
 			MaxSize:    top.Rot.MaxSize,
@@ -127,7 +127,7 @@ func newTee(tops []teeOpt) *logger {
 		core := zapcore.NewCore(
 			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
 			zapcore.AddSync(w),
-			lv,
+			top.LevelF,
 		)
 		cores = append(cores, core)
 	}
@@ -142,7 +142,7 @@ func newTee(tops []teeOpt) *logger {
 	return logger
 }
 
-func InitLoggers(logDirPath string, opt *RotateOption) {
+func InitLogers(logDirPath string, opt *RotateOption) {
 	if logDirPath == "" {
 		logDirPath = "./logs"
 	}
@@ -154,14 +154,12 @@ func InitLoggers(logDirPath string, opt *RotateOption) {
 		tops = append(tops, teeOpt{
 			Filepath: fmt.Sprintf("%s/%s.log", logDirPath, name),
 			Rot:      opt,
-			LevelF: func(fname string) LevelEnableFunc {
-				return func(l Level) bool {
-					level := InfoLevel
-					if lv, ok := levelFileName[fname]; ok {
-						level = lv
-					}
-					return l >= level
+			LevelF: func(fname string) zapcore.LevelEnabler {
+				level := InfoLevel
+				if lv, ok := levelFileName[fname]; ok {
+					level = lv
 				}
+				return level
 			}(name),
 		})
 	}

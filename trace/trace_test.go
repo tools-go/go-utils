@@ -15,9 +15,6 @@
 package trace_test
 
 import (
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/tools-go/go-utils/trace"
@@ -25,43 +22,28 @@ import (
 
 func TestTrace(t *testing.T) {
 	t1 := trace.New("t1")
-	t2 := trace.WithParent(t1, "t2")
-
-	t1.Info()
-	t2.Info()
-	t1.Info("hello trace")
-	t2.Info("hello %s", "golang")
-	t2.Infof("hello %s", "golang")
-
-	t3 := trace.New("t3")
-	t3.Infof("new log id, %s", "look")
-
-	t1.Warn(t3)
-	t2.Error(t3)
-	fmt.Println("======test race")
-	t.Log(t1)
-	t.Log(t2)
-	t.Log(t3)
-	t.Log(t1.Stack())
+	t1.Info("=====t1 inflo-213092980")
+	t1.Debugf("helllow %s ", "worlad")
 }
-func TestTraceHandler(t *testing.T) {
-	ts := httptest.NewServer(trace.Handler("httptest", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var tracer trace.Trace
-		if tracer = trace.GetTraceFromRequest(r); tracer == nil {
-			tracer = trace.New("internal-test")
-		}
-		tracer.Info("process start...")
-		defer tracer.Info("process end...")
 
-		tracer.Info("hello test!")
-		fmt.Fprintln(w, `hello test!`)
-	})))
-
-	res, err := http.Get(ts.URL)
-	if err != nil {
-		t.Fatal("get url failed:", err)
-	}
-	defer res.Body.Close()
-
-	ts.Close()
-}
+//func TestTraceHandler(t *testing.T) {
+//	ts := httptest.NewServer(trace.Handler("httptest", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+//		var tracer trace.Trace
+//		if tracer = trace.GetTraceFromRequest(r); tracer == nil {
+//			tracer = trace.New("internal-test")
+//		}
+//		tracer.Info("process start...")
+//		defer tracer.Info("process end...")
+//
+//		tracer.Info("hello test!")
+//		fmt.Fprintln(w, `hello test!`)
+//	})))
+//
+//	res, err := http.Get(ts.URL)
+//	if err != nil {
+//		t.Fatal("get url failed:", err)
+//	}
+//	defer res.Body.Close()
+//
+//	ts.Close()
+//}

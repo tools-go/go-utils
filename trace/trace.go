@@ -44,6 +44,10 @@ type Trace interface {
 	Stack(all ...bool) string
 	// String will return a string-serialized trace
 	String() string
+
+	Debug(args ...interface{})
+
+	Debugf(format string, args ...interface{})
 }
 
 type trace struct {
@@ -216,4 +220,12 @@ func (t *trace) Error(args ...interface{}) {
 
 func (t *trace) Errorf(format string, args ...interface{}) {
 	t.logf(zaplog.Logger.Error, format, args...)
+}
+
+func (t *trace) Debug(args ...interface{}) {
+	t.log(zaplog.Logger.Debug, args...)
+}
+
+func (t *trace) Debugf(format string, args ...interface{}) {
+	t.logf(zaplog.Logger.Debug, format, args...)
 }
