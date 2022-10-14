@@ -1,18 +1,3 @@
-// Copyright 2016 @leopoldxx All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// Package trace A log wrapper based on google glog. Mainly used for a http request process.
 package trace
 
 import (
@@ -22,9 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nu7hatch/gouuid"
-
-	"github.com/tools-go/go-utils/trace/glog"
+	"github.com/tools-go/go-utils/trace/zaplog"
 )
 
 const (
@@ -90,12 +73,7 @@ func WithParent(p Trace, name string) Trace {
 	if p != nil {
 		t.id = p.ID()
 	} else {
-		id := ""
-		uid, err := uuid.NewV4()
-		if err == nil {
-			id = uid.String()
-		}
-		t.id = id
+		t.id = zaplog.WithTraceID()
 	}
 
 	t.head = t.packHeader()
@@ -200,42 +178,42 @@ func (t *trace) Stack(all ...bool) string {
 	return string(Stacks(dumpAll))
 }
 
-func (t *trace) log(out func(depth int, args ...interface{}), args ...interface{}) {
+func (t *trace) log(out func(args ...interface{}), args ...interface{}) {
 	var newArgs []interface{}
 	newArgs = append(newArgs, t.header())
 	if len(args) > 0 {
 		newArgs = append(newArgs, args...)
 	}
 
-	out(stackDepth, newArgs...)
+	out(newArgs...)
 }
 
-func (t *trace) logf(out func(depth int, args ...interface{}), format string, args ...interface{}) {
+func (t *trace) logf(out func(args ...interface{}), format string, args ...interface{}) {
 	log := fmt.Sprintf(t.header()+format, args...)
-	out(stackDepth, log)
+	out(log)
 	//out(t.header()+format, stackDepth, args...)
 }
 
 func (t *trace) Info(args ...interface{}) {
-	t.log(glog.InfoDepth, args...)
+	t.log(zaplog.Logger.Info, args...)
 }
 
 func (t *trace) Infof(format string, args ...interface{}) {
-	t.logf(glog.InfoDepth, format, args...)
+	t.logf(zaplog.Logger.Info, format, args...)
 }
 
 func (t *trace) Warn(args ...interface{}) {
-	t.log(glog.WarningDepth, args...)
+	t.log(zaplog.Logger.Warn, args...)
 }
 
 func (t *trace) Warnf(format string, args ...interface{}) {
-	t.logf(glog.WarningDepth, format, args...)
+	t.logf(zaplog.Logger.Warn, format, args...)
 }
 
 func (t *trace) Error(args ...interface{}) {
-	t.log(glog.ErrorDepth, args...)
+	t.log(zaplog.Logger.Error, args...)
 }
 
 func (t *trace) Errorf(format string, args ...interface{}) {
-	t.logf(glog.ErrorDepth, format, args...)
+	t.logf(zaplog.Logger.Error, format, args...)
 }

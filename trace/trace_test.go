@@ -38,7 +38,7 @@ func TestTrace(t *testing.T) {
 
 	t1.Warn(t3)
 	t2.Error(t3)
-
+	fmt.Println("======test race")
 	t.Log(t1)
 	t.Log(t2)
 	t.Log(t3)
