@@ -2,8 +2,10 @@ package zaplog
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,18 +14,24 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Logger Log component
-var Logger Logr
+var Deflogging logger
 
 func init() {
-	InitLogers("./logs", NewDefaultRotate())
+	InitLogers("", nil)
+}
+
+func InitFlags(flagset *flag.FlagSet) {
+	if flagset == nil {
+		flagset = flag.CommandLine
+	}
+	flagset.Var(&Deflogging.verbosity, "v", "number for the log level verbosity")
 }
 
 const (
 	// DebugLevel logs are typically voluminous, and are usually disabled in
 	// production.
 	DebugLevel = Level(zap.DebugLevel)
-	// InfoLevel is the default logging priority.
+	// InfoLevel is the default Deflogging priority.
 	InfoLevel = Level(zap.InfoLevel)
 	// WarnLevel logs are more important than Info, but don't need individual
 	// human review.
@@ -47,15 +55,30 @@ func (l Level) Enabled(level zapcore.Level) bool {
 	return Level(level) >= l
 }
 
+// String is part of the flag.Value interface.
+func (l *Level) String() string {
+	return strconv.FormatInt(int64(*l), 10)
+}
+
+// Get is part of the flag.Getter interface.
+func (l *Level) Get() Level {
+	return *l
+}
+
+// Set is part of the flag.Value interface.
+func (l *Level) Set(value string) error {
+	v, err := strconv.ParseInt(value, 10, 8)
+	if err != nil {
+		return err
+	}
+	*l = Level(v)
+	return nil
+}
+
 type teeOpt struct {
 	Filepath string
 	LevelF   zapcore.LevelEnabler
 	Rot      *RotateOption
-}
-
-type logger struct {
-	l     *zap.SugaredLogger
-	check func(l *zap.SugaredLogger) bool
 }
 
 type Logr interface {
@@ -70,7 +93,51 @@ type Logr interface {
 	With(args ...interface{}) Logr
 	Debugf(template string, args ...interface{})
 	Debug(args ...interface{})
-	Sync() error
+}
+
+type logger struct {
+	l         *zap.SugaredLogger
+	check     func(l *zap.SugaredLogger) bool
+	logDir    string
+	verbosity Level
+}
+
+func Infof(template string, args ...interface{}) {
+	Deflogging.Infof(template, args...)
+}
+func Info(args ...interface{}) {
+	Deflogging.Info(args...)
+}
+func Errorf(template string, args ...interface{}) {
+	Deflogging.Errorf(template, args...)
+}
+func Error(args ...interface{}) {
+	Deflogging.Error(args...)
+}
+func Fatalf(template string, args ...interface{}) {
+	Deflogging.Fatalf(template, args...)
+}
+func Fatal(args ...interface{}) {
+	Deflogging.Fatal(args...)
+}
+func Warnf(template string, args ...interface{}) {
+	Deflogging.Warnf(template, args...)
+}
+func Warn(args ...interface{}) {
+	Deflogging.Warn(args...)
+}
+func With(args ...interface{}) Logr {
+	return Deflogging.With(args...)
+}
+
+func Debugf(template string, args ...interface{}) {
+	Deflogging.Debugf(template, args...)
+}
+func Debug(args ...interface{}) {
+	Deflogging.Debug(args...)
+}
+func Sync() error {
+	return Deflogging.Sync()
 }
 
 type RotateOption struct {
@@ -103,67 +170,87 @@ func WithLogSaveDay(day int) OptionFunc {
 	}
 }
 
-func newTee(tops []teeOpt) *logger {
-	var cores []zapcore.Core
+// verbose is a boolean type that implements Infof (like Printf) etc.
+// See the documentation of V for more information.
+type verbose struct {
+	enabled bool
+}
+
+func V(level Level) Logr {
+	// This function tries hard to be cheap unless there's work to do.
+	// Here is a cheap but safe test to see if V Deflogging is enabled globally.
+	if Deflogging.verbosity.Get() >= level {
+		return newVerbose(true)
+	}
+	return newVerbose(false)
+}
+
+func newVerbose(b bool) *verbose {
+	if Deflogging.l == nil {
+		InitLogers(Deflogging.logDir, NewDefaultRotate())
+	}
+	return &verbose{b}
+}
+
+func newZapCfg() zap.Config {
 	cfg := zap.NewProductionConfig()
 	cfg.EncoderConfig.EncodeTime = func(time time.Time, encoder zapcore.PrimitiveArrayEncoder) {
 		encoder.AppendString(time.Format("2006-01-02 15:04:05"))
 	}
 	cfg.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-	for _, top := range tops {
-		if top.Filepath == "" {
-			panic("log filepath is empty")
-		}
-		w := &lumberjack.Logger{
-			Filename:   top.Filepath,
-			MaxSize:    top.Rot.MaxSize,
-			MaxAge:     top.Rot.MaxAge,
-			MaxBackups: top.Rot.MaxBackups,
-			LocalTime:  true,
-			Compress:   top.Rot.Compress,
-		}
-		zap.AddCaller()
+	return cfg
+}
 
+func newStderrCore(cfg zap.Config) zapcore.Core {
+	// 同时日志打印到终端
+	return zapcore.NewCore(zapcore.NewConsoleEncoder(cfg.EncoderConfig), os.Stdout, zap.DebugLevel)
+}
+
+func newFileCores(logDirPath string, cfg zap.Config, opt *RotateOption) []zapcore.Core {
+	if opt == nil {
+		opt = NewDefaultRotate()
+	}
+	if len(logDirPath) <= 0 {
+		return nil
+	}
+	Deflogging.logDir = logDirPath
+	var cores []zapcore.Core
+	for name := range levelFileName {
+		w := &lumberjack.Logger{
+			Filename:   fmt.Sprintf("%s/%s.log", logDirPath, name),
+			MaxSize:    opt.MaxSize,
+			MaxAge:     opt.MaxAge,
+			MaxBackups: opt.MaxBackups,
+			LocalTime:  true,
+			Compress:   opt.Compress,
+		}
+		level := InfoLevel
+		if lv, ok := levelFileName[name]; ok {
+			level = lv
+		}
 		core := zapcore.NewCore(
 			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
 			zapcore.AddSync(w),
-			top.LevelF,
+			level,
 		)
 		cores = append(cores, core)
 	}
-	// 同时日志打印到终端
-	core := zapcore.NewCore(zapcore.NewConsoleEncoder(cfg.EncoderConfig), os.Stdout, zap.DebugLevel)
-
-	cores = append(cores, core)
-	logger := &logger{
-		l:     zap.New(zapcore.NewTee(cores...), zap.AddCaller(), zap.AddCallerSkip(1)).Sugar(),
-		check: check,
-	}
-	return logger
+	return cores
 }
 
 func InitLogers(logDirPath string, opt *RotateOption) {
-	if logDirPath == "" {
-		logDirPath = "./logs"
-	}
 	if opt == nil {
-		panic(fmt.Errorf("rotate option is nil"))
+		opt = NewDefaultRotate()
 	}
-	var tops []teeOpt
-	for name := range levelFileName {
-		tops = append(tops, teeOpt{
-			Filepath: fmt.Sprintf("%s/%s.log", logDirPath, name),
-			Rot:      opt,
-			LevelF: func(fname string) zapcore.LevelEnabler {
-				level := InfoLevel
-				if lv, ok := levelFileName[fname]; ok {
-					level = lv
-				}
-				return level
-			}(name),
-		})
-	}
-	Logger = newTee(tops)
+	var cores []zapcore.Core
+	cfg := newZapCfg()
+
+	// 输出到标准错误
+	cores = newFileCores(logDirPath, cfg, opt)
+	// 输出到文件
+	cores = append(cores, newStderrCore(cfg))
+	Deflogging.l = zap.New(zapcore.NewTee(cores...), zap.AddCaller(), zap.AddCallerSkip(3)).Sugar()
+	Deflogging.check = check
 }
 
 func check(l *zap.SugaredLogger) bool {
@@ -172,31 +259,30 @@ func check(l *zap.SugaredLogger) bool {
 
 // fields must be k/v format
 func WithFieldsContext(ctx context.Context, fields ...interface{}) context.Context {
-	lg := Logger.(*logger)
-	return context.WithValue(ctx, tracerLogHandlerID, clone(lg.l.With(fields...)))
+	return context.WithValue(ctx, tracerLogHandlerID, clone(Deflogging.l.With(fields...)))
 }
 
-func GetLogFromContext(ctx context.Context) Logr {
+func GetLogFromContext(ctx context.Context) *logger {
 	if l, ok := ctx.Value(tracerLogHandlerID).(*logger); ok {
 		return l
 	}
-	return Logger
+	return &Deflogging
 }
 
 func WithTraceID() string {
 	return uuid.New().String()
 }
 
-func (l *logger) Infof(template string, args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Infof(template, args...)
-	}
-}
-
 func clone(l *zap.SugaredLogger) *logger {
 	return &logger{
 		l:     l,
 		check: check,
+	}
+}
+
+func (l *logger) Infof(template string, args ...interface{}) {
+	if l.check(l.l) {
+		l.l.Infof(template, args...)
 	}
 }
 
@@ -269,4 +355,74 @@ func (l *logger) Sync() error {
 		return l.l.Sync()
 	}
 	return nil
+}
+
+func (l *verbose) Infof(template string, args ...interface{}) {
+	if l.enabled {
+		Deflogging.Infof(template, args...)
+	}
+}
+
+func (l *verbose) Info(args ...interface{}) {
+	if l.enabled {
+		Deflogging.Info(args...)
+	}
+}
+
+func (l *verbose) Errorf(template string, args ...interface{}) {
+	if l.enabled {
+		Deflogging.Errorf(template, args...)
+	}
+}
+
+func (l *verbose) Error(args ...interface{}) {
+	if l.enabled {
+		Deflogging.Error(args...)
+	}
+}
+
+func (l *verbose) Fatalf(template string, args ...interface{}) {
+	if l.enabled {
+		Deflogging.Fatalf(template, args...)
+	}
+}
+
+func (l *verbose) Fatal(args ...interface{}) {
+	if l.enabled {
+		Deflogging.Fatal(args...)
+	}
+}
+
+func (l *verbose) Warnf(template string, args ...interface{}) {
+	if l.enabled {
+		Deflogging.Warnf(template, args...)
+	}
+}
+
+func (l *verbose) Warn(args ...interface{}) {
+	if l.enabled {
+		Deflogging.Warn(args...)
+	}
+}
+func (l *verbose) With(args ...interface{}) Logr {
+	if l.enabled {
+		Deflogging.With(args...)
+	}
+	return l
+}
+
+func (l *verbose) Debugf(template string, args ...interface{}) {
+	if l.enabled {
+		Deflogging.Debugf(template, args...)
+	}
+}
+
+func (l *verbose) Debug(args ...interface{}) {
+	if l.enabled {
+		Deflogging.Debug(args...)
+	}
+}
+
+func (l *verbose) Enable() bool {
+	return l.enabled
 }

@@ -2,7 +2,6 @@ package trace
 
 import (
 	"bytes"
-	"fmt"
 	"runtime"
 	"strconv"
 	"time"
@@ -48,6 +47,7 @@ type Trace interface {
 	Debug(args ...interface{})
 
 	Debugf(format string, args ...interface{})
+	V(level int) *trace
 }
 
 type trace struct {
@@ -56,6 +56,7 @@ type trace struct {
 	name      string
 	id        string
 	head      string
+	l         zaplog.Logr
 }
 
 //New will create a Trace using a name, identifying the trace process
@@ -72,6 +73,7 @@ func WithParent(p Trace, name string) Trace {
 		parent:    p,
 		startTime: time.Now(),
 		name:      name,
+		l:         &zaplog.Deflogging,
 	}
 
 	if p != nil {
@@ -192,40 +194,43 @@ func (t *trace) log(out func(args ...interface{}), args ...interface{}) {
 	out(newArgs...)
 }
 
-func (t *trace) logf(out func(args ...interface{}), format string, args ...interface{}) {
-	log := fmt.Sprintf(t.header()+format, args...)
-	out(log)
+func (t *trace) logf(out func(tmp string, args ...interface{}), format string, args ...interface{}) {
+	out(t.header()+format, args...)
 	//out(t.header()+format, stackDepth, args...)
 }
 
 func (t *trace) Info(args ...interface{}) {
-	t.log(zaplog.Logger.Info, args...)
+	t.log(t.l.Info, args...)
 }
 
 func (t *trace) Infof(format string, args ...interface{}) {
-	t.logf(zaplog.Logger.Info, format, args...)
+	t.logf(t.l.Infof, format, args...)
 }
 
 func (t *trace) Warn(args ...interface{}) {
-	t.log(zaplog.Logger.Warn, args...)
+	t.log(t.l.Warn, args...)
 }
 
 func (t *trace) Warnf(format string, args ...interface{}) {
-	t.logf(zaplog.Logger.Warn, format, args...)
+	t.logf(t.l.Warnf, format, args...)
 }
 
 func (t *trace) Error(args ...interface{}) {
-	t.log(zaplog.Logger.Error, args...)
+	t.log(t.l.Error, args...)
 }
 
 func (t *trace) Errorf(format string, args ...interface{}) {
-	t.logf(zaplog.Logger.Error, format, args...)
+	t.logf(t.l.Errorf, format, args...)
 }
 
 func (t *trace) Debug(args ...interface{}) {
-	t.log(zaplog.Logger.Debug, args...)
+	t.log(t.l.Debug, args...)
 }
 
 func (t *trace) Debugf(format string, args ...interface{}) {
-	t.logf(zaplog.Logger.Debug, format, args...)
+	t.logf(t.l.Debugf, format, args...)
+}
+func (t *trace) V(level int) *trace {
+	t.l = zaplog.V(zaplog.Level(level))
+	return t
 }

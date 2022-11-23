@@ -15,15 +15,21 @@
 package trace_test
 
 import (
+	"context"
+	"flag"
 	"testing"
 
 	"github.com/tools-go/go-utils/trace"
 )
 
 func TestTrace(t *testing.T) {
+	flag.Parse()
 	t1 := trace.New("t1")
 	t1.Info("=====t1 inflo-213092980")
 	t1.Debugf("helllow %s ", "worlad")
+	tr := trace.GetTraceFromContext(context.TODO())
+	tr.Infof("==t2 with context")
+	tr.V(3).Debug("with v debug")
 }
 
 //func TestTraceHandler(t *testing.T) {
