@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,10 +16,27 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var Deflogging logger
+var (
+	Deflogging logger
+	program    = filepath.Base(os.Args[0])
+	host       = "unknownhost"
+)
 
 func init() {
 	InitLogers("", nil)
+	h, err := os.Hostname()
+	if err == nil {
+		host = shortHostname(h)
+	}
+}
+
+// shortHostname returns its argument, truncating at the first period.
+// For instance, given "www.google.com" it returns "www".
+func shortHostname(hostname string) string {
+	if i := strings.Index(hostname, "."); i >= 0 {
+		return hostname[:i]
+	}
+	return hostname
 }
 
 func InitFlags(flagset *flag.FlagSet) {
@@ -87,11 +106,11 @@ type Logr interface {
 	With(args ...interface{}) Logr
 	Debugf(template string, args ...interface{})
 	Debug(args ...interface{})
+	Enable() bool
 }
 
 type logger struct {
 	l         *zap.SugaredLogger
-	vl        *zap.SugaredLogger
 	check     func(l *zap.SugaredLogger) bool
 	opt       *RotateOption
 	logDir    string
@@ -182,8 +201,8 @@ func V(level Level) Logr {
 }
 
 func newVerbose(b bool) *verbose {
-	if Deflogging.vl == nil {
-		Deflogging.vl = newLogger(Deflogging.logDir, Deflogging.opt)
+	if Deflogging.l == nil {
+		Deflogging.l = newLogger(Deflogging.logDir, Deflogging.opt)
 	}
 	return &verbose{b}
 }
@@ -214,7 +233,7 @@ func newFileCores(logDirPath string, cfg zap.Config, opt *RotateOption) []zapcor
 	var cores []zapcore.Core
 	for name := range levelFileName {
 		w := &lumberjack.Logger{
-			Filename:   fmt.Sprintf("%s/%s.log", logDirPath, name),
+			Filename:   filepath.Join(logDirPath, fmt.Sprintf("%s.%s.%s.log", program, host, name)),
 			MaxSize:    opt.MaxSize,
 			MaxAge:     opt.MaxAge,
 			MaxBackups: opt.MaxBackups,
@@ -283,6 +302,9 @@ func clone(l *zap.SugaredLogger) *logger {
 func (l *logger) Infof(template string, args ...interface{}) {
 	l.l.Infof(template, args...)
 }
+func (l *logger) Enable() bool {
+	return true
+}
 
 func (l *logger) Info(args ...interface{}) {
 	l.l.Info(args...)
@@ -333,67 +355,67 @@ func (l *logger) Sync() error {
 
 func (l *verbose) Infof(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Infof(template, args...)
+		Deflogging.l.Infof(template, args...)
 	}
 }
 
 func (l *verbose) Info(args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Info(args...)
+		Deflogging.l.Info(args...)
 	}
 }
 
 func (l *verbose) Errorf(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Errorf(template, args...)
+		Deflogging.l.Errorf(template, args...)
 	}
 }
 
 func (l *verbose) Error(args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Error(args...)
+		Deflogging.l.Error(args...)
 	}
 }
 
 func (l *verbose) Fatalf(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Fatalf(template, args...)
+		Deflogging.l.Fatalf(template, args...)
 	}
 }
 
 func (l *verbose) Fatal(args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Fatal(args...)
+		Deflogging.l.Fatal(args...)
 	}
 }
 
 func (l *verbose) Warnf(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Warnf(template, args...)
+		Deflogging.l.Warnf(template, args...)
 	}
 }
 
 func (l *verbose) Warn(args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Warn(args...)
+		Deflogging.l.Warn(args...)
 	}
 }
 func (l *verbose) With(args ...interface{}) Logr {
 	if l.enabled {
-		Deflogging.vl.With(args...)
+		Deflogging.l.With(args...)
 	}
 	return l
 }
 
 func (l *verbose) Debugf(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Debugf(template, args...)
+		Deflogging.l.Debugf(template, args...)
 	}
 }
 
 func (l *verbose) Debug(args ...interface{}) {
 	if l.enabled {
-		Deflogging.vl.Debug(args...)
+		Deflogging.l.Debug(args...)
 	}
 }
 

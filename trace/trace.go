@@ -47,7 +47,8 @@ type Trace interface {
 	Debug(args ...interface{})
 
 	Debugf(format string, args ...interface{})
-	V(level int) *trace
+	V(level int) Trace
+	Enable() bool
 }
 
 type trace struct {
@@ -172,6 +173,17 @@ func Stacks(all bool) []byte {
 	return trace
 }
 
+func clone(t *trace) *trace {
+	return &trace{
+		parent:    t.Parent(),
+		startTime: t.startTime,
+		name:      t.name,
+		id:        t.id,
+		head:      t.head,
+		l:         t.l,
+	}
+}
+
 func (t *trace) String() string {
 	return t.header()
 }
@@ -230,7 +242,12 @@ func (t *trace) Debug(args ...interface{}) {
 func (t *trace) Debugf(format string, args ...interface{}) {
 	t.logf(t.l.Debugf, format, args...)
 }
-func (t *trace) V(level int) *trace {
-	t.l = zaplog.V(zaplog.Level(level))
-	return t
+func (t *trace) V(level int) Trace {
+	newT := clone(t)
+	newT.l = zaplog.V(zaplog.Level(level))
+	return newT
+}
+
+func (t *trace) Enable() bool {
+	return t.l.Enable()
 }
