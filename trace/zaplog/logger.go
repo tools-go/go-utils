@@ -75,12 +75,6 @@ func (l *Level) Set(value string) error {
 	return nil
 }
 
-type teeOpt struct {
-	Filepath string
-	LevelF   zapcore.LevelEnabler
-	Rot      *RotateOption
-}
-
 type Logr interface {
 	Infof(template string, args ...interface{})
 	Info(args ...interface{})
@@ -97,7 +91,9 @@ type Logr interface {
 
 type logger struct {
 	l         *zap.SugaredLogger
+	vl        *zap.SugaredLogger
 	check     func(l *zap.SugaredLogger) bool
+	opt       *RotateOption
 	logDir    string
 	verbosity Level
 }
@@ -186,8 +182,8 @@ func V(level Level) Logr {
 }
 
 func newVerbose(b bool) *verbose {
-	if Deflogging.l == nil {
-		InitLogers(Deflogging.logDir, NewDefaultRotate())
+	if Deflogging.vl == nil {
+		Deflogging.vl = newLogger(Deflogging.logDir, Deflogging.opt)
 	}
 	return &verbose{b}
 }
@@ -213,6 +209,7 @@ func newFileCores(logDirPath string, cfg zap.Config, opt *RotateOption) []zapcor
 	if len(logDirPath) <= 0 {
 		return nil
 	}
+	Deflogging.opt = opt
 	Deflogging.logDir = logDirPath
 	var cores []zapcore.Core
 	for name := range levelFileName {
@@ -238,18 +235,21 @@ func newFileCores(logDirPath string, cfg zap.Config, opt *RotateOption) []zapcor
 	return cores
 }
 
-func InitLogers(logDirPath string, opt *RotateOption) {
-	if opt == nil {
-		opt = NewDefaultRotate()
-	}
+func newLogger(logDirPath string, opt *RotateOption) *zap.SugaredLogger {
 	var cores []zapcore.Core
 	cfg := newZapCfg()
-
 	// 输出到标准错误
 	cores = newFileCores(logDirPath, cfg, opt)
 	// 输出到文件
 	cores = append(cores, newStderrCore(cfg))
-	Deflogging.l = zap.New(zapcore.NewTee(cores...), zap.AddCaller(), zap.AddCallerSkip(3)).Sugar()
+	return zap.New(zapcore.NewTee(cores...), zap.AddCaller(), zap.AddCallerSkip(3)).Sugar()
+}
+
+func InitLogers(logDirPath string, opt *RotateOption) {
+	if opt == nil {
+		opt = NewDefaultRotate()
+	}
+	Deflogging.l = newLogger(logDirPath, opt)
 	Deflogging.check = check
 }
 
@@ -281,145 +281,119 @@ func clone(l *zap.SugaredLogger) *logger {
 }
 
 func (l *logger) Infof(template string, args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Infof(template, args...)
-	}
+	l.l.Infof(template, args...)
 }
 
 func (l *logger) Info(args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Info(args...)
-	}
+	l.l.Info(args...)
 }
 
 func (l *logger) Errorf(template string, args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Errorf(template, args...)
-	}
+	l.l.Errorf(template, args...)
 }
 
 func (l *logger) Error(args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Error(args...)
-	}
+	l.l.Error(args...)
 }
 
 func (l *logger) Fatalf(template string, args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Fatalf(template, args...)
-	}
+	l.l.Fatalf(template, args...)
 }
 
 func (l *logger) Fatal(args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Fatal(args...)
-	}
+	l.l.Fatal(args...)
 }
 
 func (l *logger) Warnf(template string, args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Warnf(template, args...)
-	}
+	l.l.Warnf(template, args...)
 }
 
 func (l *logger) Warn(args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Warn(args...)
-	}
+	l.l.Warn(args...)
 }
 
 func (l *logger) Debugf(template string, args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Debugf(template, args...)
-	}
+	l.l.Debugf(template, args...)
 }
 
 func (l *logger) Debug(args ...interface{}) {
-	if l.check(l.l) {
-		l.l.Debug(args...)
-
-	}
+	l.l.Debug(args...)
 }
 
 // must bu k/v format
 func (l *logger) With(args ...interface{}) Logr {
-	if l.check(l.l) {
-		l.l = l.l.With(args...)
-	}
+	l.l = l.l.With(args...)
 	return l
 }
 
 // Sync flushes any buffered log entries.
 func (l *logger) Sync() error {
-	if l.check(l.l) {
-		return l.l.Sync()
-	}
-	return nil
+	return l.l.Sync()
 }
 
 func (l *verbose) Infof(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.Infof(template, args...)
+		Deflogging.vl.Infof(template, args...)
 	}
 }
 
 func (l *verbose) Info(args ...interface{}) {
 	if l.enabled {
-		Deflogging.Info(args...)
+		Deflogging.vl.Info(args...)
 	}
 }
 
 func (l *verbose) Errorf(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.Errorf(template, args...)
+		Deflogging.vl.Errorf(template, args...)
 	}
 }
 
 func (l *verbose) Error(args ...interface{}) {
 	if l.enabled {
-		Deflogging.Error(args...)
+		Deflogging.vl.Error(args...)
 	}
 }
 
 func (l *verbose) Fatalf(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.Fatalf(template, args...)
+		Deflogging.vl.Fatalf(template, args...)
 	}
 }
 
 func (l *verbose) Fatal(args ...interface{}) {
 	if l.enabled {
-		Deflogging.Fatal(args...)
+		Deflogging.vl.Fatal(args...)
 	}
 }
 
 func (l *verbose) Warnf(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.Warnf(template, args...)
+		Deflogging.vl.Warnf(template, args...)
 	}
 }
 
 func (l *verbose) Warn(args ...interface{}) {
 	if l.enabled {
-		Deflogging.Warn(args...)
+		Deflogging.vl.Warn(args...)
 	}
 }
 func (l *verbose) With(args ...interface{}) Logr {
 	if l.enabled {
-		Deflogging.With(args...)
+		Deflogging.vl.With(args...)
 	}
 	return l
 }
 
 func (l *verbose) Debugf(template string, args ...interface{}) {
 	if l.enabled {
-		Deflogging.Debugf(template, args...)
+		Deflogging.vl.Debugf(template, args...)
 	}
 }
 
 func (l *verbose) Debug(args ...interface{}) {
 	if l.enabled {
-		Deflogging.Debug(args...)
+		Deflogging.vl.Debug(args...)
 	}
 }
 
