@@ -43,6 +43,10 @@ type Trace interface {
 	Stack(all ...bool) string
 	// String will return a string-serialized trace
 	String() string
+	// Fatalf will print log and exit process
+	Fatalf(format string, args ...interface{})
+	// Fatalf will print log and exit process
+	Fatal(args ...interface{})
 
 	Debug(args ...interface{})
 
@@ -242,6 +246,15 @@ func (t *trace) Debug(args ...interface{}) {
 func (t *trace) Debugf(format string, args ...interface{}) {
 	t.logf(t.l.Debugf, format, args...)
 }
+
+func (t *trace) Fatalf(format string, args ...interface{}) {
+	t.logf(t.l.Fatalf, format, args...)
+}
+
+func (t *trace) Fatal(args ...interface{}) {
+	t.log(t.l.Fatal, args...)
+}
+
 func (t *trace) V(level int) Trace {
 	newT := clone(t)
 	newT.l = zaplog.V(zaplog.Level(level))
