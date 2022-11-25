@@ -51,6 +51,8 @@ type Trace interface {
 	Debug(args ...interface{})
 
 	Debugf(format string, args ...interface{})
+	// 1. 支持命令行参数指定Level, eg:  -v=3
+	// 2. 支持环境变量支持Level, export LOGVERB=3
 	V(level int) Trace
 	Enable() bool
 }

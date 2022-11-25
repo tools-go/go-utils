@@ -20,6 +20,8 @@ var (
 	Deflogging logger
 	program    = filepath.Base(os.Args[0])
 	host       = "unknownhost"
+
+	verbosity = "LOGVERB"
 )
 
 func init() {
@@ -79,8 +81,23 @@ func (l *Level) String() string {
 	return strconv.FormatInt(int64(*l), 10)
 }
 
+func getVerbosityFromEnv() Level {
+	verb := os.Getenv(verbosity)
+	if len(verb) == 0 {
+		return 0
+	}
+	v, err := strconv.Atoi(verb)
+	if err != nil {
+		return 0
+	}
+	return Level(v)
+}
+
 // Get is part of the flag.Getter interface.
 func (l *Level) Get() Level {
+	if *l == 0 {
+		return getVerbosityFromEnv()
+	}
 	return *l
 }
 
@@ -191,9 +208,9 @@ type verbose struct {
 	enabled bool
 }
 
+// 1. 支持命令行参数指定Level, eg:  -v=3
+// 2. 支持环境变量支持Level, export LOGVERB=3
 func V(level Level) Logr {
-	// This function tries hard to be cheap unless there's work to do.
-	// Here is a cheap but safe test to see if V Deflogging is enabled globally.
 	if Deflogging.verbosity.Get() >= level {
 		return newVerbose(true)
 	}
