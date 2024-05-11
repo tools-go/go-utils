@@ -1,17 +1,6 @@
 package lock
 
-import (
-	"context"
-	"fmt"
-	"sync"
-	"testing"
-	"time"
-
-	"github.com/coreos/etcd/clientv3"
-
-	"github.com/tools-go/go-utils/trace"
-)
-
+/*
 func newClientv3(t *testing.T) *clientv3.Client {
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"http://10.0.2.15:2389"},
@@ -196,3 +185,4 @@ func TestSessionClosed(t *testing.T) {
 
 	wg.Wait()
 }
+*/

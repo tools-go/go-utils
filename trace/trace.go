@@ -1,268 +1,170 @@
-package trace
+package log
 
 import (
 	"bytes"
-	"runtime"
-	"strconv"
+	"context"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"math/rand"
+	"net"
+	"net/http"
+	"os"
+	"sync"
 	"time"
 
-	"github.com/tools-go/go-utils/trace/zaplog"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
-	stackDepth = 2
+	X_REQUEST_HEADER_RID = "X-Request-Id"
 )
 
-//Trace is a log trace utils wrapped on glog, can be used to trace a http request and its subrequests
-type Trace interface {
-	// Parent will return the parent trace
-	Parent() Trace
-	// Name will return the current trace name
-	Name() string
-	// SetName will set a new name for the Trace object
-	SetName(name string)
-	// ID will return the current trace id
-	ID() string
-	// Start will return the current trace start time
-	Start() time.Time
-	// Duration will return the current trace Duration
-	Duration() time.Duration
-	// Info will print the args as the info level log
-	Info(args ...interface{})
-	// Infof will print the args with a format as the info level log
-	Infof(format string, args ...interface{})
-	// Warn will print the args as the warn level log
-	Warn(args ...interface{})
-	// Warnf will print the args with a format as the warn level log
-	Warnf(format string, args ...interface{})
-	// Error will print the args as the error level log
-	Error(args ...interface{})
-	// Errorf will print the args with a format as the error level log
-	Errorf(format string, args ...interface{})
-	// Stack will return current stack
-	Stack(all ...bool) string
-	// String will return a string-serialized trace
-	String() string
-	// Fatalf will print log and exit process
-	Fatalf(format string, args ...interface{})
-	// Fatalf will print log and exit process
-	Fatal(args ...interface{})
-
-	Debug(args ...interface{})
-
-	Debugf(format string, args ...interface{})
-	// 1. 支持命令行参数指定Level, eg:  -v=3
-	// 2. 支持环境变量支持Level, export LOGVERB=3
-	V(level int) Trace
-	Enable() bool
+var rndPool = sync.Pool{
+	New: func() interface{} {
+		return rand.New(rand.NewSource(time.Now().UnixNano()))
+	},
 }
 
-type trace struct {
-	parent    Trace
-	startTime time.Time
-	name      string
-	id        string
-	head      string
-	l         zaplog.Logr
+type Trace struct {
+	TraceId     string
+	SpanId      string
+	HintCode    int64
+	HintContent HintContent
 }
 
-//New will create a Trace using a name, identifying the trace process
-func New(name string, id ...string) Trace {
-	if len(id) > 0 && len(id[0]) > 0 {
-		return WithID(name, id[0])
-	}
-	return WithParent(nil, name)
+type HintContent struct {
+	Sample HintSampling `json:"Sample"`
 }
 
-//WithParent will create a Trace use a parent Trace and a identified name
-func WithParent(p Trace, name string) Trace {
-	t := &trace{
-		parent:    p,
-		startTime: time.Now(),
-		name:      name,
-		l:         &zaplog.Deflogging,
+type HintSampling struct {
+	Rate int   `json:"Rate"`
+	Code int64 `json:"Code"`
+}
+
+var ip string
+
+func NewSpanId(ctx context.Context) string {
+	sc := trace.SpanContextFromContext(ctx)
+	if sc.SpanID().IsValid() {
+		return sc.SpanID().String()
 	}
 
-	if p != nil {
-		t.id = p.ID()
-	} else {
-		t.id = zaplog.WithTraceID()
+	rnd := rndPool.Get().(*rand.Rand)
+	defer rndPool.Put(rnd)
+
+	return fmt.Sprintf("%d", rnd.Int63())
+}
+
+// GetTraceFromHeader 从http request中获取header中的trace信息
+func GetTraceFromHeader(request *http.Request) (t *Trace) {
+	t = &Trace{}
+	sc := trace.SpanContextFromContext(request.Context())
+	if sc.TraceID().IsValid() {
+		t.TraceId = sc.TraceID().String()
+		t.SpanId = sc.SpanID().String()
 	}
 
-	t.head = t.packHeader()
 	return t
 }
 
-//WithID will create a Trace with a name and a trace id
-func WithID(name string, id string) Trace {
-	t := &trace{
-		parent:    nil,
-		startTime: time.Now(),
-		name:      name,
-		id:        id,
+// GenTraceId 生成traceid
+func GenTraceId(ctx context.Context) (traceId string) {
+	sc := trace.SpanContextFromContext(ctx)
+	if sc.TraceID().IsValid() {
+		return sc.TraceID().String()
 	}
-	t.head = t.packHeader()
+
+	if ip == "" {
+		ip = GetIp()
+	}
+	return calculateTraceId(ip)
+}
+
+func calculateTraceId(ip string) (traceId string) {
+	now := time.Now()
+	timestamp := uint32(now.Unix())
+	timeNano := now.UnixNano()
+	pid := os.Getpid()
+	b := bytes.Buffer{}
+	rnd := rndPool.Get().(*rand.Rand)
+	defer rndPool.Put(rnd)
+
+	b.WriteString(hex.EncodeToString(net.ParseIP(ip).To4()))
+	b.WriteString(fmt.Sprintf("%x", timestamp&0xffffffff))
+	b.WriteString(fmt.Sprintf("%04x", timeNano&0xffff))
+	b.WriteString(fmt.Sprintf("%04x", pid&0xffff))
+	b.WriteString(fmt.Sprintf("%06x", rnd.Int31n(1<<24)))
+	b.WriteString("b0")
+
+	return b.String()
+}
+
+func (l *Logger) GetTrace(ctx context.Context) *Trace {
+	if l.Trace == nil {
+		l.Trace = &Trace{}
+	}
+	t := l.Trace
+	if len(t.TraceId) <= 0 {
+		t.TraceId = GenTraceId(ctx)
+	}
+	if len(t.SpanId) <= 0 {
+		t.SpanId = NewSpanId(ctx)
+	}
 	return t
 }
 
-func (t *trace) packHeader() string {
-	var buffer bytes.Buffer
+func (l *Logger) ResetTrace(ctx context.Context) *Trace {
+	l.Trace = &Trace{}
+	return l.GetTrace(ctx)
+}
 
-	buffer.WriteString("tname=[")
-	buffer.WriteString(t.Name())
-	buffer.WriteString("] ")
+func (l *Logger) ParseTrace(req *http.Request) {
+	l.Trace = GetTraceFromHeader(req)
+}
 
-	buffer.WriteString("tid=[")
-	buffer.WriteString(t.ID())
-	buffer.WriteString("] ")
+func (l *Logger) SetTraceToWriter(ctx context.Context, rw http.ResponseWriter) {
+	rw.Header().Set(X_REQUEST_HEADER_RID, l.GetTrace(ctx).GetTraceId())
+}
 
-	if t.parent != nil {
-		buffer.WriteString("tancestor=[")
-		for np := t.parent; np != nil; np = np.Parent() {
-			if np != t.parent {
-				buffer.WriteString(",")
+func (t *Trace) GetTraceId() string {
+	return t.TraceId
+}
+
+func (t *Trace) GetSpanId() string {
+	return t.SpanId
+}
+
+func (t *Trace) GetHintCode() string {
+	return fmt.Sprint(t.HintCode)
+}
+
+func (t *Trace) GetHintContent() string {
+	if t.HintContent != (HintContent{}) {
+		if hc, err := json.Marshal(t.HintContent); err == nil {
+			return string(hc)
+		}
+	}
+	return ""
+}
+
+func GetIntranetIpv4() (ip string, err error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "127.0.0.1", err
+	}
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				ip = ipnet.IP.String()
+				break
 			}
-			buffer.WriteString(np.Name())
 		}
-		buffer.WriteString("] ")
 	}
-
-	buffer.WriteString("tduration=[")
-
-	return buffer.String()
+	return ip, err
 }
 
-func (t *trace) header() string {
-	return t.head + strconv.Itoa(int(t.Duration())) + "] "
-}
-
-func (t *trace) Parent() Trace {
-	return t.parent
-}
-
-func (t *trace) Name() string {
-	return t.name
-}
-
-func (t *trace) SetName(name string) {
-	t.name = name
-}
-
-func (t *trace) ID() string {
-	return t.id
-}
-
-func (t *trace) Start() time.Time {
-	return t.startTime
-}
-
-func (t *trace) Duration() time.Duration {
-	// time.Millisecond
-	return time.Since(t.startTime) / time.Millisecond
-}
-
-// copy this from glog
-func Stacks(all bool) []byte {
-	n := 10000
-	if all {
-		n = 100000
-	}
-	var trace []byte
-	for i := 0; i < 5; i++ {
-		trace = make([]byte, n)
-		nbytes := runtime.Stack(trace, all)
-		if nbytes < len(trace) {
-			return trace[:nbytes]
-		}
-		n *= 2
-	}
-	return trace
-}
-
-func clone(t *trace) *trace {
-	return &trace{
-		parent:    t.Parent(),
-		startTime: t.startTime,
-		name:      t.name,
-		id:        t.id,
-		head:      t.head,
-		l:         t.l,
-	}
-}
-
-func (t *trace) String() string {
-	return t.header()
-}
-
-func (t *trace) Stack(all ...bool) string {
-	dumpAll := false
-	if len(all) > 0 {
-		dumpAll = all[0]
-	}
-	return string(Stacks(dumpAll))
-}
-
-func (t *trace) log(out func(args ...interface{}), args ...interface{}) {
-	var newArgs []interface{}
-	newArgs = append(newArgs, t.header())
-	if len(args) > 0 {
-		newArgs = append(newArgs, args...)
-	}
-
-	out(newArgs...)
-}
-
-func (t *trace) logf(out func(tmp string, args ...interface{}), format string, args ...interface{}) {
-	out(t.header()+format, args...)
-	//out(t.header()+format, stackDepth, args...)
-}
-
-func (t *trace) Info(args ...interface{}) {
-	t.log(t.l.Info, args...)
-}
-
-func (t *trace) Infof(format string, args ...interface{}) {
-	t.logf(t.l.Infof, format, args...)
-}
-
-func (t *trace) Warn(args ...interface{}) {
-	t.log(t.l.Warn, args...)
-}
-
-func (t *trace) Warnf(format string, args ...interface{}) {
-	t.logf(t.l.Warnf, format, args...)
-}
-
-func (t *trace) Error(args ...interface{}) {
-	t.log(t.l.Error, args...)
-}
-
-func (t *trace) Errorf(format string, args ...interface{}) {
-	t.logf(t.l.Errorf, format, args...)
-}
-
-func (t *trace) Debug(args ...interface{}) {
-	t.log(t.l.Debug, args...)
-}
-
-func (t *trace) Debugf(format string, args ...interface{}) {
-	t.logf(t.l.Debugf, format, args...)
-}
-
-func (t *trace) Fatalf(format string, args ...interface{}) {
-	t.logf(t.l.Fatalf, format, args...)
-}
-
-func (t *trace) Fatal(args ...interface{}) {
-	t.log(t.l.Fatal, args...)
-}
-
-func (t *trace) V(level int) Trace {
-	newT := clone(t)
-	newT.l = zaplog.V(zaplog.Level(level))
-	return newT
-}
-
-func (t *trace) Enable() bool {
-	return t.l.Enable()
+func GetIp() string {
+	ip, _ := GetIntranetIpv4()
+	return ip
 }
