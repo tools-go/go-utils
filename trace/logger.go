@@ -1,4 +1,4 @@
-package log
+package trace
 
 import (
 	"context"
@@ -46,10 +46,10 @@ func SetConfig(c Config, logDir string) {
 
 func NewLogger(logId int64, module string) *Logger {
 	l := &Logger{LogId: logId}
-	if CommonLogger != nil {
-		l.Logger = CommonLogger.Logger.WithOptions() // 等价于clone
-		return l
-	}
+	//if CommonLogger != nil {
+	//	l.Logger = CommonLogger.Logger.WithOptions() // 等价于clone
+	//	return l
+	//}
 
 	encoder := NewFCLogEncoder(zapcore.EncoderConfig{
 		MessageKey:     "M",

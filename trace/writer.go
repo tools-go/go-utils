@@ -1,6 +1,7 @@
-package log
+package trace
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -145,10 +146,13 @@ func fileScanner(rotateWriter *RotateWriter, quit chan struct{}) {
 				rotateWriter.INode = stat.Sys().(*syscall.Stat_t).Ino
 			}
 			if err != nil && os.IsNotExist(err) {
+				fmt.Println("========fileScanner isnotexist")
 				rotateWriter.Rotate()
 			} else if now.Minute() == 0 && now.Second() == 0 {
+				fmt.Println("========fileScanner min=0 sec=0")
 				rotateWriter.Rotate()
 			} else if stat != nil && stat.Sys().(*syscall.Stat_t).Ino != rotateWriter.INode {
+				fmt.Println("========fileScanner openexist or new")
 				rotateWriter.OpenExistingOrNew()
 			}
 		case <-quit:

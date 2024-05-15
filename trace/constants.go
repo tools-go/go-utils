@@ -1,4 +1,4 @@
-package log
+package trace
 
 const (
 	LOG_OK = "ok"

@@ -1,8 +1,9 @@
-package log
+package trace
 
 import (
 	"context"
 	"testing"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -16,13 +17,32 @@ func init() {
 			MaxBackups: 10,
 		},
 		OutputPaths: map[string][]string{
-			"unkongwn": []string{""},
+			"ping":  []string{"ping.log"},
+			"probe": []string{"probe.log"},
 		},
-	}, "stdout")
+	}, "/Users/baoqingzhang/work/gopath/src/github.com/tools-go/go-utils/trace/logs/")
 }
 
 func TestNewLogger(t *testing.T) {
-	l := NewLogger(0, "unkongwn")
-	l.WithBF(context.TODO())
-	l.Info("========info==")
+	l := NewLogger(0, "ping")
+	l.WithBF(context.Background())
+	nll := l.Clone().WithBF(context.TODO())
+	nll.Infof("==========info=222")
+
+	go func() {
+		for {
+			pl := NewLogger(1, "probe").WithBF(context.TODO())
+			pl.Info("======probe==1111===")
+			time.Sleep(2 * time.Second)
+		}
+	}()
+	go func() {
+		for {
+			pl := NewLogger(1, "probe").WithBF(context.TODO())
+			pl.Info("======probe===222==")
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	select {}
 }
