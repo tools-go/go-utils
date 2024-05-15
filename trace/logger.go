@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -18,12 +19,18 @@ var (
 	CommonLogger *Logger
 )
 
+var (
+	writers = sync.Map{}
+)
+
 type Fields = []zap.Field
 
 type Logger struct {
 	*zap.Logger
+	orig *zap.Logger
 	*Trace
-	LogId int64
+	LogId     int64
+	modelName string
 }
 
 func SetConfig(c Config, logDir string) {
@@ -45,11 +52,19 @@ func SetConfig(c Config, logDir string) {
 }
 
 func NewLogger(logId int64, module string) *Logger {
-	l := &Logger{LogId: logId}
-	//if CommonLogger != nil {
-	//	l.Logger = CommonLogger.Logger.WithOptions() // 等价于clone
-	//	return l
-	//}
+	l := &Logger{LogId: logId, modelName: module}
+	if CommonLogger != nil && (module == CommonLogger.modelName || module == "") {
+		l.Logger = CommonLogger.Logger.WithOptions() // 等价于clone
+		l.orig = CommonLogger.orig.WithOptions()
+		return l
+	}
+	var writer Writer
+	if w, ok := writers.Load(module); ok {
+		writer = w.(Writer)
+	} else {
+		w := NewAsyncRotateWriter(&config, module)
+		writers.Store(module, w)
+	}
 
 	encoder := NewFCLogEncoder(zapcore.EncoderConfig{
 		MessageKey:     "M",
@@ -65,12 +80,13 @@ func NewLogger(logId int64, module string) *Logger {
 		EncodeCaller:   CallerEncoder,
 		EncodeName:     nil,
 	})
-	writer := NewAsyncRotateWriter(&config, module)
+
 	if config.Level == (zap.AtomicLevel{}) {
 		panic(ErrMissingLevel)
 	}
 
 	l.Logger = zap.New(zapcore.NewCore(encoder, writer, config.Level), config.buildOptions(writer)...)
+	l.orig = l.Logger.WithOptions()
 	return l
 }
 
@@ -78,6 +94,13 @@ func (l *Logger) Clone() *Logger {
 	return &Logger{
 		LogId:  utils.GenerateId(),
 		Logger: l.Logger.WithOptions(),
+	}
+}
+
+func (l *Logger) ClonePure() *Logger {
+	return &Logger{
+		LogId:  utils.GenerateId(),
+		Logger: l.orig.WithOptions(),
 	}
 }
 
