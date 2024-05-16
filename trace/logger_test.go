@@ -26,7 +26,9 @@ func init() {
 func TestNewLogger(t *testing.T) {
 	l := NewLogger(0, "ping")
 	l.WithBF(context.Background())
-	nll := l.Clone().WithBF(context.TODO())
+	l.Named("pingmesh")
+	l.Logger.Info("==========info=nanem===")
+	nll := l.ClonePure().WithBF(context.TODO())
 	nll.Infof("==========info=222")
 
 	go func() {

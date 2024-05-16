@@ -62,8 +62,8 @@ func NewLogger(logId int64, module string) *Logger {
 	if w, ok := writers.Load(module); ok {
 		writer = w.(Writer)
 	} else {
-		w := NewAsyncRotateWriter(&config, module)
-		writers.Store(module, w)
+		writer = NewAsyncRotateWriter(&config, module)
+		writers.Store(module, writer)
 	}
 
 	encoder := NewFCLogEncoder(zapcore.EncoderConfig{
@@ -116,6 +116,10 @@ func (l *Logger) getBaseFields(ctx context.Context) []zap.Field {
 func (l *Logger) With(fields ...zap.Field) *Logger {
 	l.Logger = l.Logger.With(fields...)
 	return l
+}
+
+func (l *Logger) Named(s string) *Logger {
+	return l.With(zap.String("logname", s))
 }
 
 func (l *Logger) WithBF(ctx context.Context) *Logger {
